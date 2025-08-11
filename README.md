@@ -1,4 +1,4 @@
-# Raycast Steam Tools (Windows)
+# Raycast Steam Utilities (Windows)
 Launch and manage Steam on Windows from Raycast. The extension discovers your Steam install and libraries, lists installed games for the currently logged-in account, and provides account switching helpers.
 
 ## Features
@@ -17,7 +17,7 @@ Launch and manage Steam on Windows from Raycast. The extension discovers your St
 
 ## Installation & Usage
 - Install from the Raycast Store (Windows) once approved, or run locally using the steps below.
-- Open the command: "Steam Tools".
+- Open the command: "Steam Utilities".
   - The command shows three sections: Games, Accounts, and Steam Actions.
   - Use search to filter games or accounts by name, SteamID64, or nickname.
 

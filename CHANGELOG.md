@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 - Mark package as private to avoid accidental npm publish.
 
 ## 0.1.0
-- Initial release of Steam Tools for Raycast (Windows):
+- Initial release of Steam Utilities for Raycast (Windows):
   - Discover Steam path and libraries automatically.
   - List and search installed games for the current account.
   - Launch games via `steam://` or `steam.exe -applaunch` fallback.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "Steam Tools",
+  "display": "Steam Utilities",
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
