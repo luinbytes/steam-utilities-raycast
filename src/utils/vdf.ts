@@ -16,7 +16,7 @@ export function parseVDF(content: string): VDFObject {
   function skipWhitespace() {
     while (i < text.length) {
       const ch = text[i];
-      if (ch === "/" && text[i + 1] === "/") {
+      if (ch === "/" && i + 1 < text.length && text[i + 1] === "/") {
         while (i < text.length && text[i] !== "\n") i++;
       } else if (ch === "\n" || ch === "\t" || ch === " " || ch === "\r") {
         i++;
@@ -35,6 +35,10 @@ export function parseVDF(content: string): VDFObject {
       const ch = text[i++];
       if (ch === '"') break;
       if (ch === "\\") {
+        if (i >= text.length)
+          throw new Error(
+            `Unexpected end of input after escape character at position ${i - 1}`,
+          );
         const next = text[i++];
         if (next === "n") result += "\n";
         else if (next === "t") result += "\t";
