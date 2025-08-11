@@ -1,14 +1,14 @@
-# Changelog
+# Changelog for Steam Utilities for Raycast
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased - {PR_MERGE_DATE}
-- Prepare for Raycast Store submission: add keywords, refine description and category, add Permissions & Privacy, Troubleshooting, and Support sections to README.
-- Add CHANGELOG.md.
+## [Prepare for Raycast Store submission] - {PR_MERGE_DATE}
+- Add keywords, refine description and category, and add Permissions & Privacy, Troubleshooting, and Support sections to `README.md`.
+- Add `CHANGELOG.md`.
 - Mark package as private to avoid accidental npm publish.
 
-## 0.1.0 - {PR_MERGE_DATE}
-- Initial release of Steam Utilities for Raycast (Windows):
+## [Initial release] - {PR_MERGE_DATE}
+- Steam Utilities for Raycast (Windows):
   - Discover Steam path and libraries automatically.
   - List and search installed games for the current account.
   - Launch games via `steam://` or `steam.exe -applaunch` fallback.

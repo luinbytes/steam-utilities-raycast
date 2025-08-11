@@ -94,3 +94,15 @@ See [CHANGELOG.md](./CHANGELOG.md).
 
 ## License
 MIT
+
+## Store submission & metadata
+- Screenshots live under `metadata/` (max 6). Recommended at least 3.
+- Specs: 2000x1250 px, 16:10, PNG. Keep a consistent background and avoid sensitive data.
+- Tip: Use Raycast Window Capture and enable “Save to Metadata” to auto-save screenshots to this folder.
+
+## Code style
+- Prettier config: see `.prettierrc` (printWidth 100, single quotes, trailing commas, etc.).
+- Scripts:
+  - `npm run lint` to check style and ESLint rules.
+  - `npm run fix-lint` to auto-fix common issues.
+  - `npm run build` to create a distribution build prior to publishing.
