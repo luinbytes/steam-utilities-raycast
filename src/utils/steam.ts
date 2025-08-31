@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "fs";
+import { existsSync, readdirSync, statSync, readFileSync } from "fs";
 import { join } from "path";
 import { executeCommand } from "./index";
 import { parseVDF } from "./vdf";
@@ -9,37 +9,47 @@ export interface SteamPaths {
   configPath: string; // <SteamPath>\config
 }
 
+// Calculate directory size recursively
+function getDirectorySize(dirPath: string): number {
+  let totalSize = 0;
+
+  try {
+    const items = readdirSync(dirPath);
+
+    for (const item of items) {
+      const fullPath = join(dirPath, item);
+      const stat = statSync(fullPath);
+
+      if (stat.isDirectory()) {
+        totalSize += getDirectorySize(fullPath);
+      } else if (stat.isFile()) {
+        totalSize += stat.size;
+      }
+    }
+  } catch (error) {
+    console.log(`Could not calculate size for ${dirPath}`);
+  }
+
+  return totalSize;
+}
+
 // Safe string extractor for loosely-typed VDF objects
 function getStr(obj: Record<string, unknown>, key: string): string {
   const v = obj[key];
   return typeof v === "string" ? v : String(v ?? "");
 }
 
-export function listSteamUsersSync(paths: SteamPaths): SteamUser[] {
-  const loginUsersPath = join(paths.configPath, "loginusers.vdf");
-  if (!existsSync(loginUsersPath)) return [];
-  try {
-    const raw = readFileSync(loginUsersPath, "utf8");
-    const v = parseVDF(raw);
-    const root = (v["users"] || v) as Record<string, unknown>;
-    const users: SteamUser[] = [];
-    for (const key of Object.keys(root)) {
-      const u = root[key];
-      if (!u || typeof u !== "object") continue;
-      const uobj = u as Record<string, unknown>;
-      users.push({
-        steamId64: key,
-        accountName: getStr(uobj, "AccountName"),
-        personaName: getStr(uobj, "PersonaName"),
-        mostRecent: getStr(uobj, "MostRecent") === "1",
-        rememberPassword: getStr(uobj, "RememberPassword") === "1",
-      });
-    }
-    return users;
-  } catch {
-    return [];
-  }
+// Format bytes to human readable format
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 Bytes";
+
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
+
 
 export async function restartSteam(paths?: SteamPaths): Promise<void> {
   const p = paths ?? (await getSteamInstallPath());
@@ -47,17 +57,21 @@ export async function restartSteam(paths?: SteamPaths): Promise<void> {
   // Kill steam if running, ignore error if not running
   try {
     await executeCommand(`taskkill /IM steam.exe /F`);
+    // Wait a moment for Steam to fully terminate
+    await new Promise(resolve => setTimeout(resolve, 2000));
   } catch {
     // ignore if Steam isn't running
   }
-  // Start Steam
-  await executeCommand(`start "" "${p.steamExe}"`);
+  // Launch Steam with proper context using explorer.exe to preserve user permissions
+  // This ensures NVIDIA driver access is maintained
+  await executeCommand(`explorer.exe "${p.steamExe}"`);
 }
 
 export async function openSteam(paths?: SteamPaths): Promise<void> {
   const p = paths ?? (await getSteamInstallPath());
   if (!p) throw new Error("Steam installation not found");
-  await executeCommand(`start "" "${p.steamExe}"`);
+  // Use explorer.exe to launch Steam with proper user context
+  await executeCommand(`explorer.exe "${p.steamExe}"`);
 }
 
 export async function openSteamConfigFolder(paths?: SteamPaths): Promise<void> {
@@ -67,31 +81,44 @@ export async function openSteamConfigFolder(paths?: SteamPaths): Promise<void> {
   await executeCommand(`start "" "${p.configPath}"`);
 }
 
-export async function logoutSteam(): Promise<void> {
-  // Attempt to trigger Steam logout via protocol handler. If not supported, this may no-op.
-  try {
-    await executeCommand(`start "" "steam://logout"`);
-  } catch {
-    // Silently ignore; user can log out manually inside Steam.
-  }
-}
 
-export async function startSteamWithLogin(accountName: string, paths?: SteamPaths): Promise<void> {
+
+
+export async function getSteamUserDisplayName(steamId64: string, paths?: SteamPaths): Promise<string> {
   const p = paths ?? (await getSteamInstallPath());
-  if (!p) throw new Error("Steam installation not found");
-  // Ensure Steam is not running; ignore errors if it's not.
+  if (!p) return steamId64; // Fallback to ID if Steam not found
+
+  const loginUsersPath = join(p.configPath, "loginusers.vdf");
+  if (!existsSync(loginUsersPath)) return steamId64; // Fallback to ID if file not found
+
   try {
-    await executeCommand(`taskkill /IM steam.exe /F`);
+    const raw = readFileSync(loginUsersPath, "utf8");
+    const v = parseVDF(raw);
+    const root = (v["users"] || v) as Record<string, unknown>;
+
+    // Look for the SteamID64 in the users object
+    const userData = root[steamId64];
+    if (userData && typeof userData === "object") {
+      const userObj = userData as Record<string, unknown>;
+      const personaName = getStr(userObj, "PersonaName");
+      const accountName = getStr(userObj, "AccountName");
+
+      // Prefer PersonaName (display name), fallback to AccountName
+      if (personaName && personaName.trim()) {
+        return personaName.trim();
+      }
+      if (accountName && accountName.trim()) {
+        return accountName.trim();
+      }
+    }
+
+    return steamId64; // Fallback to ID if name not found
   } catch {
-    // ignore if Steam isn't running
+    return steamId64; // Fallback to ID on error
   }
-  // Best-effort username prefill. Steam may ignore this flag on some builds.
-  // Shell-escape the accountName for Windows cmd by quoting and doubling internal quotes.
-  const safeAccount = `"${accountName.replace(/"/g, '""')}"`;
-  await executeCommand(`start "" "${p.steamExe}" -login ${safeAccount}`);
 }
 
-export async function getCurrentSteamUser(paths?: SteamPaths): Promise<SteamUser | undefined> {
+export async function getCurrentSteamUser(paths?: SteamPaths): Promise<string | undefined> {
   const p = paths ?? (await getSteamInstallPath());
   if (!p) return undefined;
   const loginUsersPath = join(p.configPath, "loginusers.vdf");
@@ -100,23 +127,14 @@ export async function getCurrentSteamUser(paths?: SteamPaths): Promise<SteamUser
     const raw = readFileSync(loginUsersPath, "utf8");
     const v = parseVDF(raw);
     const root = (v["users"] || v) as Record<string, unknown>;
-    let mostRecent: SteamUser | undefined;
-    const users: SteamUser[] = [];
+    let mostRecent: string | undefined;
+    const users: string[] = [];
     for (const key of Object.keys(root)) {
       const u = root[key];
       if (!u || typeof u !== "object") continue;
       const uobj = u as Record<string, unknown>;
-      const accountName = getStr(uobj, "AccountName");
-      const personaName = getStr(uobj, "PersonaName");
       const most = getStr(uobj, "MostRecent") === "1";
-      const remember = getStr(uobj, "RememberPassword") === "1";
-      const su: SteamUser = {
-        steamId64: key,
-        accountName,
-        personaName,
-        mostRecent: most,
-        rememberPassword: remember,
-      };
+      const su = key;
       users.push(su);
       if (most) mostRecent = su;
     }
@@ -124,7 +142,7 @@ export async function getCurrentSteamUser(paths?: SteamPaths): Promise<SteamUser
     // Fallback to AutoLoginUser registry value -> match AccountName
     const autoLogin = await readRegistryString("HKCU\\Software\\Valve\\Steam", "AutoLoginUser");
     if (autoLogin) {
-      const match = users.find((u) => u.accountName.toLowerCase() === autoLogin.toLowerCase());
+      const match = users.find((u) => u === autoLogin);
       if (match) return match;
     }
     return users[0];
@@ -133,10 +151,13 @@ export async function getCurrentSteamUser(paths?: SteamPaths): Promise<SteamUser
   }
 }
 
-export function listInstalledGamesForUser(steamPath: string, steamId64: string): SteamGame[] {
+export async function listInstalledGames(steamPath: string): Promise<SteamGame[]> {
   const games = listAllInstalledGames(steamPath);
-  // Only keep games whose manifest LastOwner strictly matches the current user's SteamID64
-  return games.filter((g) => g.lastOwner === steamId64);
+
+  // Return all installed games - no filtering, let UI handle categorization
+  const installedGames = games.filter(g => g.installed);
+
+  return installedGames;
 }
 
 export interface SteamLibrary {
@@ -153,13 +174,6 @@ export interface SteamGame {
   lastOwner?: string; // SteamID64 of the account that last owned/installed
 }
 
-export interface SteamUser {
-  steamId64: string;
-  accountName: string;
-  personaName?: string;
-  mostRecent?: boolean;
-  rememberPassword?: boolean;
-}
 
 function readRegistryString(path: string, value: string): Promise<string | undefined> {
   // Use reg.exe to query a value

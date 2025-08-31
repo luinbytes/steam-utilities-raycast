@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "steam-utilities",
-  "title": "Steam Games & Accounts",
-  "description": "Browse installed Steam games, launch them, and switch between Steam accounts on Windows.",
+  "title": "Steam Games",
+  "description": "Browse installed Steam games and launch them on Windows.",
   "icon": "command-icon.png",
   "author": "nazzy_wazzy_lu",
   "categories": [
@@ -16,14 +16,13 @@
     "steam",
     "games",
     "launcher",
-    "windows",
-    "accounts"
+    "windows"
   ],
   "commands": [
     {
       "name": "steam-games",
       "title": "Steam Utilities",
-      "description": "Browse games, switch accounts, and run Steam actions",
+      "description": "Browse games and run Steam actions",
       "mode": "view"
     }
   ],
